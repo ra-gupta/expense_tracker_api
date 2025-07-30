@@ -1,0 +1,12 @@
+# config/database.yml.github
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  host: localhost
+  username: postgres
+  password: password
+  pool: 5
+
+test:
+  <<: *default
+  database: expense_tracker_api_test

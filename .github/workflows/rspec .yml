@@ -1,0 +1,59 @@
+name: Run Model Specs
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        ports: ['5432:5432']
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: expense_tracker_api_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://postgres:password@localhost:5432/expense_tracker_api_test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.4.4  # adjust if needed
+        bundler-cache: true
+
+    - name: Install dependencies
+      run: |
+        gem install bundler
+        bundle install --jobs 4 --retry 3
+
+    - name: Clean structure.sql (remove unsupported PostgreSQL config)
+      run: |
+        if [ -f db/structure.sql ]; then
+          grep -v "SET transaction_timeout" db/structure.sql > db/structure.cleaned.sql
+          mv db/structure.cleaned.sql db/structure.sql
+        fi
+
+    - name: Set up database
+      run: |
+        cp config/database.yml.github config/database.yml
+        bundle exec rails db:prepare
+
+    - name: Run RSpec
+      run: bundle exec rspec ./spec/models
